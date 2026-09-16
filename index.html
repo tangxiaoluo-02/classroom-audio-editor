@@ -61,8 +61,11 @@
       <div class="sel-edge" data-edge="start">
         <div class="sel-edge-top">
           <span class="sel-edge-label">起點</span>
-          <span class="sel-edge-time mono" id="selStartTime">0:00.0</span>
-          <button class="sel-preview-btn" data-edge="start" title="試聽起點附近">▶ 試聽</button>
+          <span class="time-edit">
+            <input type="number" class="time-input time-input-min" id="selStartMin" min="0" step="1" inputmode="numeric" />分
+            <input type="number" class="time-input time-input-sec" id="selStartSec" min="0" max="59.9" step="0.1" inputmode="decimal" />秒
+          </span>
+          <button class="sel-preview-btn" data-edge="start" title="試聽起點附近">▶</button>
         </div>
         <div class="sel-nudge-row" data-edge="start">
           <button class="nudge-btn" data-delta="-1">－1秒</button>
@@ -74,8 +77,11 @@
       <div class="sel-edge" data-edge="end">
         <div class="sel-edge-top">
           <span class="sel-edge-label">終點</span>
-          <span class="sel-edge-time mono" id="selEndTime">0:00.0</span>
-          <button class="sel-preview-btn" data-edge="end" title="試聽終點附近">▶ 試聽</button>
+          <span class="time-edit">
+            <input type="number" class="time-input time-input-min" id="selEndMin" min="0" step="1" inputmode="numeric" />分
+            <input type="number" class="time-input time-input-sec" id="selEndSec" min="0" max="59.9" step="0.1" inputmode="decimal" />秒
+          </span>
+          <button class="sel-preview-btn" data-edge="end" title="試聽終點附近">▶</button>
         </div>
         <div class="sel-nudge-row" data-edge="end">
           <button class="nudge-btn" data-delta="-1">－1秒</button>

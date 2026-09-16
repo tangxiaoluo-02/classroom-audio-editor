@@ -279,13 +279,44 @@ function updateSelectionUI() {
   el("selPanel").hidden = !hasSel;
   if (hasSel) {
     const s = state.region.start, e = state.region.end;
-    el("selStartTime").textContent = fmtTime(s);
-    el("selEndTime").textContent = fmtTime(e);
+    setEdgeInputs("start", s);
+    setEdgeInputs("end", e);
     el("selDuration").textContent = "長度 " + fmtTime(e - s);
   }
   el("btnDelete").disabled = !hasSel;
   el("btnKeep").disabled = !hasSel;
 }
+
+function setEdgeInputs(edge, totalSec) {
+  const min = Math.floor(totalSec / 60);
+  const sec = Math.round((totalSec - min * 60) * 10) / 10;
+  el(edge === "start" ? "selStartMin" : "selEndMin").value = min;
+  el(edge === "start" ? "selStartSec" : "selEndSec").value = sec;
+}
+
+function applySelEdgeFromInputs(edge) {
+  if (!state.region || !state.buffer) return;
+  const minEl = el(edge === "start" ? "selStartMin" : "selEndMin");
+  const secEl = el(edge === "start" ? "selStartSec" : "selEndSec");
+  const min = parseFloat(minEl.value);
+  const sec = parseFloat(secEl.value);
+  const t = (isFinite(min) ? min : 0) * 60 + (isFinite(sec) ? sec : 0);
+  const r = state.region.wsRegion;
+  const MIN_GAP = 0.05;
+  if (edge === "start") {
+    r.setOptions({ start: Math.max(0, Math.min(r.end - MIN_GAP, t)) });
+  } else {
+    r.setOptions({ end: Math.min(state.buffer.duration, Math.max(r.start + MIN_GAP, t)) });
+  }
+  state.region = { start: r.start, end: r.end, wsRegion: r };
+  updateSelectionUI();
+}
+
+["selStartMin", "selStartSec", "selEndMin", "selEndSec"].forEach((id) => {
+  const edge = id.startsWith("selStart") ? "start" : "end";
+  el(id).addEventListener("change", () => applySelEdgeFromInputs(edge));
+  el(id).addEventListener("keydown", (e) => { if (e.key === "Enter") e.target.blur(); });
+});
 
 function nudgeSelectionEdge(edge, delta) {
   if (!state.region || !state.buffer) return;

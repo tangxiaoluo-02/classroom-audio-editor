@@ -252,12 +252,33 @@ header.topbar h1 {
   color: var(--text-dim);
   width: 30px;
 }
-.sel-edge-time {
+.time-edit {
   flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text-dim);
+  min-width: 0;
+}
+.time-input {
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--accent);
+  border-radius: 8px;
+  padding: 6px 4px;
   font-size: 15px;
   font-weight: 700;
-  color: var(--accent);
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+  -moz-appearance: textfield;
 }
+.time-input::-webkit-outer-spin-button,
+.time-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.time-input-min { width: 2.6em; }
+.time-input-sec { width: 3.4em; }
+.time-input:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
 .sel-preview-btn {
   flex-shrink: 0;
   border: 1px solid var(--accent);
