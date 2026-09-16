@@ -1,6 +1,6 @@
 {
-  "name": "課堂錄音剪輯",
-  "short_name": "錄音剪輯",
+  "name": "暴力快剪",
+  "short_name": "暴力快剪",
   "description": "剪輯、變速變調、轉檔上課錄音的手機工具",
   "start_url": "./index.html",
   "scope": "./",
