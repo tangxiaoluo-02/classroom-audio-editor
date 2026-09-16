@@ -318,24 +318,46 @@ function initWavesurfer() {
   ws.registerPlugin(regionsPlugin);
   regionsPlugin.enableDragSelection({ color: "rgba(242,166,90,0.28)" });
 
+  // A tap on empty waveform (meant to preview a spot) still crosses the plugin's
+  // internal drag threshold on a touchscreen, so it always produces a "region".
+  // We can't tell a tap from a real selection until the finger actually lifts,
+  // so we track the newest not-yet-confirmed region and only decide on pointerup.
+  let pendingNewRegion = null;
+  const tapToleranceSec = () => 12 / (zoomState.current || zoomState.fit || 20);
+
   regionsPlugin.on("region-created", (r) => {
-    regionsPlugin.getRegions().forEach((other) => { if (other !== r) other.remove(); });
-    state.region = { start: r.start, end: r.end, wsRegion: r };
-    updateSelectionUI();
+    pendingNewRegion = r;
   });
   regionsPlugin.on("region-updated", (r) => {
-    state.region = { start: r.start, end: r.end, wsRegion: r };
-    updateSelectionUI();
+    if (state.region && state.region.wsRegion === r) {
+      // resizing/moving an already-confirmed selection: always honor it as-is
+      state.region = { start: r.start, end: r.end, wsRegion: r };
+      updateSelectionUI();
+    }
   });
   regionsPlugin.on("region-clicked", (r, e) => {
     e.stopPropagation();
     ws.setTime(r.start);
   });
   regionsPlugin.on("region-removed", (r) => {
+    if (pendingNewRegion === r) pendingNewRegion = null;
     if (state.region && state.region.wsRegion === r) {
       state.region = null;
       updateSelectionUI();
     }
+  });
+  document.addEventListener("pointerup", () => {
+    const r = pendingNewRegion;
+    pendingNewRegion = null;
+    if (!r || r.isRemoved) return;
+    if (r.end - r.start < tapToleranceSec()) {
+      r.remove();
+      ws.setTime(r.start);
+      return;
+    }
+    regionsPlugin.getRegions().forEach((other) => { if (other !== r) other.remove(); });
+    state.region = { start: r.start, end: r.end, wsRegion: r };
+    updateSelectionUI();
   });
 
   ws.on("timeupdate", updateTimeUI);
