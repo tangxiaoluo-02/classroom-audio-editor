@@ -227,6 +227,8 @@ function setCurrentBuffer(buf, { pushUndo = true } = {}) {
   }
   state.buffer = buf;
   updateUndoBtn();
+  // Any edit invalidates whatever start/end the clip panel was showing.
+  if (!el("clipPanel").hidden) closeClipPanel();
   renderWaveform();
 }
 
@@ -347,7 +349,7 @@ function previewClipEdge(edge) {
   ws.play(Math.max(0, t - 0.4), Math.min(state.buffer.duration, t + 0.4));
 }
 
-el("clipSheet").addEventListener("click", (e) => {
+el("clipPanel").addEventListener("click", (e) => {
   const nudgeBtn = e.target.closest(".nudge-btn");
   if (nudgeBtn) {
     nudgeClipEdge(nudgeBtn.closest(".sel-nudge-row").dataset.edge, parseFloat(nudgeBtn.dataset.delta));
@@ -357,7 +359,7 @@ el("clipSheet").addEventListener("click", (e) => {
   if (previewBtn) previewClipEdge(previewBtn.dataset.edge);
 });
 
-el("btnClip").addEventListener("click", () => {
+function openClipPanel() {
   if (!state.buffer) return;
   const dur = state.buffer.duration;
   const start = Math.min(ws.getCurrentTime(), Math.max(0, dur - MIN_CLIP_GAP));
@@ -365,21 +367,31 @@ el("btnClip").addEventListener("click", () => {
   clip.end = Math.min(dur, start + Math.min(3, dur - start));
   setClipInputs();
   drawClipRegion();
-  openSheet("clipSheet");
+  el("clipPanel").hidden = false;
+  el("clipPanel").scrollIntoView({ behavior: "smooth", block: "nearest" });
+}
+
+function closeClipPanel() {
+  el("clipPanel").hidden = true;
+  clearClipRegion();
+}
+
+el("btnClip").addEventListener("click", () => {
+  if (el("clipPanel").hidden) openClipPanel();
+  else closeClipPanel();
 });
+el("clipPanelClose").addEventListener("click", closeClipPanel);
 
 el("clipDeleteBtn").addEventListener("click", () => {
   const { s, e } = clipToSamples();
-  closeSheets();
-  clearClipRegion();
+  closeClipPanel();
   setCurrentBuffer(deleteRange(state.buffer, s, e));
   toast("已刪除該區間");
 });
 
 el("clipKeepBtn").addEventListener("click", () => {
   const { s, e } = clipToSamples();
-  closeSheets();
-  clearClipRegion();
+  closeClipPanel();
   setCurrentBuffer(keepRange(state.buffer, s, e));
   toast("已保留該區間");
 });
@@ -473,6 +485,7 @@ el("undoBtn").addEventListener("click", () => {
   const prev = state.undoStack.pop();
   state.buffer = prev;
   updateUndoBtn();
+  if (!el("clipPanel").hidden) closeClipPanel();
   renderWaveform();
   toast("已復原上一步");
 });
@@ -502,7 +515,6 @@ function openSheet(id) {
 function closeSheets() {
   el("sheetBackdrop").classList.remove("open");
   document.querySelectorAll(".sheet.open").forEach((s) => s.classList.remove("open"));
-  clearClipRegion();
 }
 el("sheetBackdrop").addEventListener("click", closeSheets);
 document.querySelectorAll("[data-close-sheet]").forEach((b) => b.addEventListener("click", closeSheets));

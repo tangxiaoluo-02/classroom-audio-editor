@@ -224,6 +224,54 @@ header.topbar h1 {
   font-size: 11px;
   color: var(--text-dim);
 }
+.clip-panel {
+  margin: 10px 14px 0;
+  background: var(--surface);
+  border: 1px solid var(--accent);
+  border-radius: 16px;
+  padding: 12px 14px 14px;
+  box-shadow: var(--shadow);
+  flex-shrink: 0;
+}
+.clip-panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+.clip-panel-head h3 { margin: 0; font-size: 15px; }
+.icon-btn-plain {
+  border: none;
+  background: var(--surface-2);
+  color: var(--text-dim);
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+.icon-btn-plain:active { background: var(--border); }
+.clip-actions-inline {
+  display: flex;
+  gap: 10px;
+  margin-top: 14px;
+}
+.clip-actions-inline button {
+  flex: 1;
+  padding: 12px;
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 700;
+  border: none;
+  cursor: pointer;
+  color: var(--accent-contrast);
+}
+.clip-actions-inline .danger { background: var(--danger); }
+.clip-actions-inline button:not(.danger) { background: var(--accent); }
+
 .sel-edge + .sel-edge { margin-top: 14px; }
 .sel-edge-top {
   display: flex;
