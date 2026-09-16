@@ -343,10 +343,12 @@ function nudgeClipEdge(edge, delta) {
   drawClipRegion();
 }
 
+const PREVIEW_LEN = 2.5;
+
 function previewClipEdge(edge) {
   if (!state.buffer) return;
   const t = edge === "start" ? clip.start : clip.end;
-  ws.play(Math.max(0, t - 0.4), Math.min(state.buffer.duration, t + 0.4));
+  ws.play(t, Math.min(state.buffer.duration, t + PREVIEW_LEN));
 }
 
 el("clipPanel").addEventListener("click", (e) => {
