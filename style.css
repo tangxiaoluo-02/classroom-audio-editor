@@ -72,7 +72,6 @@ body {
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  padding-top: var(--safe-t);
   padding-bottom: var(--safe-b);
   -webkit-tap-highlight-color: transparent;
 }
@@ -84,36 +83,38 @@ header.topbar {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 10px 14px;
-  background: var(--surface);
-  border-bottom: 1px solid var(--border);
+  padding: 12px 14px;
+  padding-top: calc(12px + var(--safe-t));
+  background: linear-gradient(120deg, var(--accent-strong), var(--accent));
   flex-shrink: 0;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.15);
 }
 header.topbar h1 {
-  font-size: 15px;
-  font-weight: 700;
+  font-size: 17px;
+  font-weight: 800;
   margin: 0;
   flex: 1;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  letter-spacing: 0.2px;
+  letter-spacing: 0.3px;
+  color: var(--accent-contrast);
 }
 .icon-btn {
   border: none;
-  background: transparent;
-  color: var(--text);
-  width: 38px;
-  height: 38px;
+  background: rgba(255, 255, 255, 0.16);
+  color: var(--accent-contrast);
+  width: 36px;
+  height: 36px;
   border-radius: 10px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 18px;
+  font-size: 17px;
   cursor: pointer;
 }
 .icon-btn:disabled { opacity: 0.35; }
-.icon-btn:active:not(:disabled) { background: var(--surface-2); }
+.icon-btn:active:not(:disabled) { background: rgba(255, 255, 255, 0.3); }
 
 /* ---------- Import screen ---------- */
 #importScreen {
@@ -223,23 +224,7 @@ header.topbar h1 {
   font-size: 11px;
   color: var(--text-dim);
 }
-.sel-hint {
-  text-align: center;
-  font-size: 12.5px;
-  padding: 8px 4px 2px;
-  min-height: 20px;
-  color: var(--text-dim);
-}
-
-.sel-panel {
-  margin: 8px 14px 0;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 14px;
-  padding: 12px 12px 10px;
-  box-shadow: var(--shadow);
-}
-.sel-edge + .sel-edge { margin-top: 10px; }
+.sel-edge + .sel-edge { margin-top: 14px; }
 .sel-edge-top {
   display: flex;
   align-items: center;
@@ -309,18 +294,13 @@ header.topbar h1 {
 }
 .nudge-btn:active { background: var(--border); }
 .sel-summary {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-top: 12px;
-  padding-top: 10px;
+  text-align: center;
+  margin-top: 14px;
+  padding-top: 12px;
   border-top: 1px solid var(--border);
-  font-size: 12.5px;
-  color: var(--text-dim);
-}
-.sel-summary .clear-sel {
-  border: none; background: none; color: var(--danger);
-  font-size: 12.5px; font-weight: 600; text-decoration: underline; cursor: pointer;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--accent);
 }
 
 .transport {
@@ -358,29 +338,46 @@ header.topbar h1 {
 /* ---------- Toolbar grid ---------- */
 .toolbar {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 8px;
-  padding: 12px 14px 4px;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  padding: 14px 14px 4px;
 }
 .tool-btn {
   appearance: none;
   border: 1px solid var(--border);
   background: var(--surface);
   color: var(--text);
-  border-radius: 12px;
-  padding: 10px 4px 9px;
+  border-radius: 14px;
+  padding: 12px 6px 10px;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 5px;
-  font-size: 11px;
+  gap: 7px;
+  font-size: 12px;
+  font-weight: 600;
   cursor: pointer;
   line-height: 1.3;
+  box-shadow: var(--shadow);
+  transition: transform 0.1s ease;
 }
-.tool-btn .ic { font-size: 18px; }
-.tool-btn:active { background: var(--surface-2); }
-.tool-btn.danger { color: var(--danger); }
+.tool-btn .ic {
+  font-size: 18px;
+  width: 34px;
+  height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: var(--surface-2);
+}
+.tool-btn:active { transform: scale(0.96); }
 .tool-btn:disabled { opacity: 0.35; }
+.tool-btn.primary {
+  background: linear-gradient(135deg, var(--accent-strong), var(--accent));
+  color: var(--accent-contrast);
+  border-color: transparent;
+}
+.tool-btn.primary .ic { background: rgba(255, 255, 255, 0.22); }
 
 .export-bar {
   padding: 4px 14px 14px;

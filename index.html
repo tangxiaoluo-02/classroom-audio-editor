@@ -55,47 +55,6 @@
       </div>
     </div>
 
-    <div class="sel-hint" id="selHint">拖曳波形可選取一段範圍</div>
-
-    <div class="sel-panel" id="selPanel" hidden>
-      <div class="sel-edge" data-edge="start">
-        <div class="sel-edge-top">
-          <span class="sel-edge-label">起點</span>
-          <span class="time-edit">
-            <input type="number" class="time-input time-input-min" id="selStartMin" min="0" step="1" inputmode="numeric" />分
-            <input type="number" class="time-input time-input-sec" id="selStartSec" min="0" max="59.9" step="0.1" inputmode="decimal" />秒
-          </span>
-          <button class="sel-preview-btn" data-edge="start" title="試聽起點附近">▶</button>
-        </div>
-        <div class="sel-nudge-row" data-edge="start">
-          <button class="nudge-btn" data-delta="-1">－1秒</button>
-          <button class="nudge-btn" data-delta="-0.1">－0.1</button>
-          <button class="nudge-btn" data-delta="0.1">＋0.1</button>
-          <button class="nudge-btn" data-delta="1">＋1秒</button>
-        </div>
-      </div>
-      <div class="sel-edge" data-edge="end">
-        <div class="sel-edge-top">
-          <span class="sel-edge-label">終點</span>
-          <span class="time-edit">
-            <input type="number" class="time-input time-input-min" id="selEndMin" min="0" step="1" inputmode="numeric" />分
-            <input type="number" class="time-input time-input-sec" id="selEndSec" min="0" max="59.9" step="0.1" inputmode="decimal" />秒
-          </span>
-          <button class="sel-preview-btn" data-edge="end" title="試聽終點附近">▶</button>
-        </div>
-        <div class="sel-nudge-row" data-edge="end">
-          <button class="nudge-btn" data-delta="-1">－1秒</button>
-          <button class="nudge-btn" data-delta="-0.1">－0.1</button>
-          <button class="nudge-btn" data-delta="0.1">＋0.1</button>
-          <button class="nudge-btn" data-delta="1">＋1秒</button>
-        </div>
-      </div>
-      <div class="sel-summary">
-        <span class="mono" id="selDuration">長度 0:00.0</span>
-        <button class="clear-sel" id="clearSelBtn">清除選取</button>
-      </div>
-    </div>
-
     <div class="transport">
       <button id="backBtn" title="倒退 5 秒">⏪</button>
       <button id="playBtn" class="play" title="播放 / 暫停">▶</button>
@@ -103,8 +62,7 @@
     </div>
 
     <div class="toolbar">
-      <button class="tool-btn danger" id="btnDelete" disabled><span class="ic">✂️</span>刪除選取</button>
-      <button class="tool-btn" id="btnKeep" disabled><span class="ic">📌</span>僅保留選取</button>
+      <button class="tool-btn primary" id="btnClip"><span class="ic">✂️</span>剪輯音檔</button>
       <button class="tool-btn" id="btnFadeIn"><span class="ic">🌅</span>淡入</button>
       <button class="tool-btn" id="btnFadeOut"><span class="ic">🌇</span>淡出</button>
       <button class="tool-btn" id="btnSpeed"><span class="ic">⏱️</span>變速</button>
@@ -122,6 +80,57 @@
     <button id="installBannerClose">✕</button>
   </div>
 </section>
+
+<!-- Clip sheet -->
+<div class="sheet" id="clipSheet">
+  <div class="sheet-handle"></div>
+  <h3>剪輯音檔</h3>
+  <p class="sheet-sub">設定起點與終點，選擇要刪除還是保留這段範圍。</p>
+
+  <div class="sel-edge" data-edge="start">
+    <div class="sel-edge-top">
+      <span class="sel-edge-label">起點</span>
+      <span class="time-edit">
+        <input type="number" class="time-input time-input-min" id="clipStartMin" min="0" step="1" inputmode="numeric" />分
+        <input type="number" class="time-input time-input-sec" id="clipStartSec" min="0" max="59.9" step="0.1" inputmode="decimal" />秒
+      </span>
+      <button class="sel-preview-btn" data-edge="start" title="試聽起點附近">▶</button>
+    </div>
+    <div class="sel-nudge-row" data-edge="start">
+      <button class="nudge-btn" data-delta="-1">－1秒</button>
+      <button class="nudge-btn" data-delta="-0.1">－0.1</button>
+      <button class="nudge-btn" data-delta="0.1">＋0.1</button>
+      <button class="nudge-btn" data-delta="1">＋1秒</button>
+    </div>
+  </div>
+  <div class="sel-edge" data-edge="end">
+    <div class="sel-edge-top">
+      <span class="sel-edge-label">終點</span>
+      <span class="time-edit">
+        <input type="number" class="time-input time-input-min" id="clipEndMin" min="0" step="1" inputmode="numeric" />分
+        <input type="number" class="time-input time-input-sec" id="clipEndSec" min="0" max="59.9" step="0.1" inputmode="decimal" />秒
+      </span>
+      <button class="sel-preview-btn" data-edge="end" title="試聽終點附近">▶</button>
+    </div>
+    <div class="sel-nudge-row" data-edge="end">
+      <button class="nudge-btn" data-delta="-1">－1秒</button>
+      <button class="nudge-btn" data-delta="-0.1">－0.1</button>
+      <button class="nudge-btn" data-delta="0.1">＋0.1</button>
+      <button class="nudge-btn" data-delta="1">＋1秒</button>
+    </div>
+  </div>
+  <div class="sel-summary">
+    <span class="mono" id="clipDuration">長度 0:00.0</span>
+  </div>
+
+  <div class="sheet-actions">
+    <button class="cancel" data-close-sheet>取消</button>
+  </div>
+  <div class="sheet-actions clip-actions">
+    <button class="confirm danger" id="clipDeleteBtn">刪除此區間</button>
+    <button class="confirm" id="clipKeepBtn">僅保留此區間</button>
+  </div>
+</div>
 
 <!-- Speed sheet -->
 <div class="sheet" id="speedSheet">
@@ -165,7 +174,7 @@
   <p class="field-label">插入位置</p>
   <div class="seg-group" id="insertPosGroup">
     <div class="seg-btn" data-pos="start">開頭</div>
-    <div class="seg-btn" data-pos="selection">目前選取處</div>
+    <div class="seg-btn" data-pos="playhead">目前播放位置</div>
     <div class="seg-btn active" data-pos="end">結尾（合併）</div>
   </div>
   <div class="sheet-actions">

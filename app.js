@@ -9,17 +9,17 @@ const state = {
   sampleRate: null,
   undoStack: [],
   fileBaseName: "錄音",
-  region: null,
 };
 
 let ws = null;
 let regionsPlugin = null;
 const zoomState = { fit: 20, max: 400, current: null };
-// A tap on empty waveform (meant to preview a spot) still crosses the regions
-// plugin's internal drag threshold on a touchscreen, so it always produces a
-// "region". We can't tell a tap from a real selection until the finger lifts,
-// so we track the newest not-yet-confirmed region and only decide on pointerup.
-let pendingNewRegion = null;
+// The clip sheet's working start/end, live while that sheet is open. Not
+// created by dragging the waveform — touch drag-selection turned out to be
+// too imprecise, so this is entered/nudged as numbers instead. clipRegion is
+// only a read-only visual highlight on the waveform, never draggable itself.
+const clip = { start: 0, end: 0 };
+let clipRegion = null;
 
 const el = (id) => document.getElementById(id);
 const fmtTime = (s) => {
@@ -226,9 +226,7 @@ function setCurrentBuffer(buf, { pushUndo = true } = {}) {
     if (state.undoStack.length > UNDO_LIMIT) state.undoStack.shift();
   }
   state.buffer = buf;
-  state.region = null;
   updateUndoBtn();
-  updateSelectionUI();
   renderWaveform();
 }
 
@@ -273,106 +271,118 @@ function updateUndoBtn() {
   el("undoBtn").disabled = state.undoStack.length === 0;
 }
 
-function updateSelectionUI() {
-  const hasSel = !!state.region;
-  el("selHint").hidden = hasSel;
-  el("selPanel").hidden = !hasSel;
-  if (hasSel) {
-    const s = state.region.start, e = state.region.end;
-    setEdgeInputs("start", s);
-    setEdgeInputs("end", e);
-    el("selDuration").textContent = "長度 " + fmtTime(e - s);
-  }
-  el("btnDelete").disabled = !hasSel;
-  el("btnKeep").disabled = !hasSel;
-}
-
-function setEdgeInputs(edge, totalSec) {
-  const min = Math.floor(totalSec / 60);
-  const sec = Math.round((totalSec - min * 60) * 10) / 10;
-  el(edge === "start" ? "selStartMin" : "selEndMin").value = min;
-  el(edge === "start" ? "selStartSec" : "selEndSec").value = sec;
-}
-
-function applySelEdgeFromInputs(edge) {
-  if (!state.region || !state.buffer) return;
-  const minEl = el(edge === "start" ? "selStartMin" : "selEndMin");
-  const secEl = el(edge === "start" ? "selStartSec" : "selEndSec");
-  const min = parseFloat(minEl.value);
-  const sec = parseFloat(secEl.value);
-  const t = (isFinite(min) ? min : 0) * 60 + (isFinite(sec) ? sec : 0);
-  const r = state.region.wsRegion;
-  const MIN_GAP = 0.05;
-  if (edge === "start") {
-    r.setOptions({ start: Math.max(0, Math.min(r.end - MIN_GAP, t)) });
-  } else {
-    r.setOptions({ end: Math.min(state.buffer.duration, Math.max(r.start + MIN_GAP, t)) });
-  }
-  state.region = { start: r.start, end: r.end, wsRegion: r };
-  updateSelectionUI();
-}
-
-["selStartMin", "selStartSec", "selEndMin", "selEndSec"].forEach((id) => {
-  const edge = id.startsWith("selStart") ? "start" : "end";
-  el(id).addEventListener("change", () => applySelEdgeFromInputs(edge));
-  el(id).addEventListener("keydown", (e) => { if (e.key === "Enter") e.target.blur(); });
-});
-
-function nudgeSelectionEdge(edge, delta) {
-  if (!state.region || !state.buffer) return;
-  const r = state.region.wsRegion;
-  const MIN_GAP = 0.05;
-  if (edge === "start") {
-    const next = Math.max(0, Math.min(r.end - MIN_GAP, r.start + delta));
-    r.setOptions({ start: next });
-  } else {
-    const next = Math.min(state.buffer.duration, Math.max(r.start + MIN_GAP, r.end + delta));
-    r.setOptions({ end: next });
-  }
-  state.region = { start: r.start, end: r.end, wsRegion: r };
-  updateSelectionUI();
-}
-
-function previewSelectionEdge(edge) {
-  if (!state.region || !state.buffer) return;
-  const t = edge === "start" ? state.region.start : state.region.end;
-  const from = Math.max(0, t - 0.4);
-  const to = Math.min(state.buffer.duration, t + 0.4);
-  ws.play(from, to);
-}
-
-el("selPanel").addEventListener("click", (e) => {
-  const nudgeBtn = e.target.closest(".nudge-btn");
-  if (nudgeBtn) {
-    const edge = nudgeBtn.closest(".sel-nudge-row").dataset.edge;
-    nudgeSelectionEdge(edge, parseFloat(nudgeBtn.dataset.delta));
-    return;
-  }
-  const previewBtn = e.target.closest(".sel-preview-btn");
-  if (previewBtn) {
-    previewSelectionEdge(previewBtn.dataset.edge);
-    return;
-  }
-  if (e.target.closest("#clearSelBtn")) {
-    if (state.region && state.region.wsRegion) state.region.wsRegion.remove();
-    state.region = null;
-    updateSelectionUI();
-  }
-});
-
 function updateTimeUI() {
   el("curTime").textContent = fmtTime(ws.getCurrentTime());
   el("totalTime").textContent = fmtTime(ws.getDuration());
 }
 
-function selSamples() {
-  if (!state.region) return null;
+/* ---------------- Clip sheet (start/end entered as numbers, not dragged) ---------------- */
+
+function clipToSamples() {
   const sr = state.buffer.sampleRate;
   return {
-    s: Math.max(0, Math.round(state.region.start * sr)),
-    e: Math.min(state.buffer.length, Math.round(state.region.end * sr)),
+    s: Math.max(0, Math.round(clip.start * sr)),
+    e: Math.min(state.buffer.length, Math.round(clip.end * sr)),
   };
 }
+
+function setClipInputs() {
+  setTimeInputs("clipStart", clip.start);
+  setTimeInputs("clipEnd", clip.end);
+  el("clipDuration").textContent = "長度 " + fmtTime(clip.end - clip.start);
+}
+
+function setTimeInputs(prefix, totalSec) {
+  const min = Math.floor(totalSec / 60);
+  const sec = Math.round((totalSec - min * 60) * 10) / 10;
+  el(prefix + "Min").value = min;
+  el(prefix + "Sec").value = sec;
+}
+
+function drawClipRegion() {
+  if (clipRegion) { clipRegion.remove(); clipRegion = null; }
+  clipRegion = regionsPlugin.addRegion({
+    start: clip.start,
+    end: clip.end,
+    color: "rgba(242,166,90,0.28)",
+    drag: false,
+    resize: false,
+  });
+}
+
+function clearClipRegion() {
+  if (clipRegion) { clipRegion.remove(); clipRegion = null; }
+}
+
+const MIN_CLIP_GAP = 0.05;
+
+function applyClipEdgeFromInputs(edge) {
+  if (!state.buffer) return;
+  const min = parseFloat(el(edge === "start" ? "clipStartMin" : "clipEndMin").value);
+  const sec = parseFloat(el(edge === "start" ? "clipStartSec" : "clipEndSec").value);
+  const t = (isFinite(min) ? min : 0) * 60 + (isFinite(sec) ? sec : 0);
+  if (edge === "start") clip.start = Math.max(0, Math.min(clip.end - MIN_CLIP_GAP, t));
+  else clip.end = Math.min(state.buffer.duration, Math.max(clip.start + MIN_CLIP_GAP, t));
+  setClipInputs();
+  drawClipRegion();
+}
+
+["clipStartMin", "clipStartSec", "clipEndMin", "clipEndSec"].forEach((id) => {
+  const edge = id.startsWith("clipStart") ? "start" : "end";
+  el(id).addEventListener("change", () => applyClipEdgeFromInputs(edge));
+  el(id).addEventListener("keydown", (e) => { if (e.key === "Enter") e.target.blur(); });
+});
+
+function nudgeClipEdge(edge, delta) {
+  if (!state.buffer) return;
+  if (edge === "start") clip.start = Math.max(0, Math.min(clip.end - MIN_CLIP_GAP, clip.start + delta));
+  else clip.end = Math.min(state.buffer.duration, Math.max(clip.start + MIN_CLIP_GAP, clip.end + delta));
+  setClipInputs();
+  drawClipRegion();
+}
+
+function previewClipEdge(edge) {
+  if (!state.buffer) return;
+  const t = edge === "start" ? clip.start : clip.end;
+  ws.play(Math.max(0, t - 0.4), Math.min(state.buffer.duration, t + 0.4));
+}
+
+el("clipSheet").addEventListener("click", (e) => {
+  const nudgeBtn = e.target.closest(".nudge-btn");
+  if (nudgeBtn) {
+    nudgeClipEdge(nudgeBtn.closest(".sel-nudge-row").dataset.edge, parseFloat(nudgeBtn.dataset.delta));
+    return;
+  }
+  const previewBtn = e.target.closest(".sel-preview-btn");
+  if (previewBtn) previewClipEdge(previewBtn.dataset.edge);
+});
+
+el("btnClip").addEventListener("click", () => {
+  if (!state.buffer) return;
+  const dur = state.buffer.duration;
+  const start = Math.min(ws.getCurrentTime(), Math.max(0, dur - MIN_CLIP_GAP));
+  clip.start = start;
+  clip.end = Math.min(dur, start + Math.min(3, dur - start));
+  setClipInputs();
+  drawClipRegion();
+  openSheet("clipSheet");
+});
+
+el("clipDeleteBtn").addEventListener("click", () => {
+  const { s, e } = clipToSamples();
+  closeSheets();
+  clearClipRegion();
+  setCurrentBuffer(deleteRange(state.buffer, s, e));
+  toast("已刪除該區間");
+});
+
+el("clipKeepBtn").addEventListener("click", () => {
+  const { s, e } = clipToSamples();
+  closeSheets();
+  clearClipRegion();
+  setCurrentBuffer(keepRange(state.buffer, s, e));
+  toast("已保留該區間");
+});
 
 /* ---------------- Init waveform ---------------- */
 
@@ -390,119 +400,13 @@ function initWavesurfer() {
   });
   regionsPlugin = WaveSurfer.Regions.create();
   ws.registerPlugin(regionsPlugin);
-  regionsPlugin.enableDragSelection({ color: "rgba(242,166,90,0.28)" });
-
-  const tapToleranceSec = () => 12 / (zoomState.current || zoomState.fit || 20);
-
-  regionsPlugin.on("region-created", (r) => {
-    pendingNewRegion = r;
-  });
-  regionsPlugin.on("region-updated", (r) => {
-    if (state.region && state.region.wsRegion === r) {
-      // resizing/moving an already-confirmed selection: always honor it as-is
-      state.region = { start: r.start, end: r.end, wsRegion: r };
-      updateSelectionUI();
-    }
-  });
-  regionsPlugin.on("region-clicked", (r, e) => {
-    e.stopPropagation();
-    ws.setTime(r.start);
-  });
-  regionsPlugin.on("region-removed", (r) => {
-    if (pendingNewRegion === r) pendingNewRegion = null;
-    if (state.region && state.region.wsRegion === r) {
-      state.region = null;
-      updateSelectionUI();
-    }
-  });
-  document.addEventListener("pointerup", () => {
-    const r = pendingNewRegion;
-    pendingNewRegion = null;
-    if (!r || r.isRemoved) return;
-    if (r.end - r.start < tapToleranceSec()) {
-      r.remove();
-      ws.setTime(r.start);
-      return;
-    }
-    regionsPlugin.getRegions().forEach((other) => { if (other !== r) other.remove(); });
-    state.region = { start: r.start, end: r.end, wsRegion: r };
-    updateSelectionUI();
-  });
+  // Regions are only ever drawn programmatically now, as a read-only preview
+  // of the clip sheet's current start/end — never created or resized by touch.
 
   ws.on("timeupdate", updateTimeUI);
   ws.on("play", () => { el("playBtn").textContent = "⏸"; });
   ws.on("pause", () => { el("playBtn").textContent = "▶"; });
   ws.on("finish", () => { el("playBtn").textContent = "▶"; });
-
-  setupEdgeAutoScroll();
-}
-
-// When a drag (new selection or resizing an edge) reaches near the left/right
-// edge of the waveform while zoomed in, keep scrolling that direction AND keep
-// growing the region ourselves. The regions plugin only recomputes a region's
-// bounds from genuine pointermove deltas — a finger held still at the edge
-// while we scroll underneath it never fires those, so the plugin never sees
-// the extension unless we apply it directly.
-function setupEdgeAutoScroll() {
-  const EDGE_MARGIN = 44;
-  const MAX_SPEED = 18;
-  let dragging = false;
-  let lastX = null;
-  let rafId = null;
-
-  function timeAtClientX(clientX) {
-    const rect = el("waveform").getBoundingClientRect();
-    const pxPerSec = zoomState.current || zoomState.fit || 20;
-    const t = (ws.getScroll() + (clientX - rect.left)) / pxPerSec;
-    return Math.max(0, Math.min(state.buffer ? state.buffer.duration : t, t));
-  }
-
-  function growActiveRegion(edgeSign, clientX) {
-    const region = pendingNewRegion || (state.region && state.region.wsRegion);
-    if (!region || region.isRemoved) return;
-    const t = timeAtClientX(clientX);
-    if (edgeSign > 0) {
-      region.setOptions({ end: Math.max(t, region.start + 0.05) });
-    } else {
-      region.setOptions({ start: Math.min(t, region.end - 0.05) });
-    }
-    if (state.region && state.region.wsRegion === region) {
-      state.region = { start: region.start, end: region.end, wsRegion: region };
-      updateSelectionUI();
-    }
-  }
-
-  function loop() {
-    if (!dragging) { rafId = null; return; }
-    const rect = el("waveform").getBoundingClientRect();
-    if (lastX != null) {
-      let edgeSign = 0;
-      let depth = 0;
-      if (lastX < rect.left + EDGE_MARGIN) {
-        edgeSign = -1;
-        depth = Math.min(1, (rect.left + EDGE_MARGIN - lastX) / EDGE_MARGIN);
-      } else if (lastX > rect.right - EDGE_MARGIN) {
-        edgeSign = 1;
-        depth = Math.min(1, (lastX - (rect.right - EDGE_MARGIN)) / EDGE_MARGIN);
-      }
-      if (edgeSign !== 0) {
-        ws.setScroll(ws.getScroll() + edgeSign * depth * MAX_SPEED);
-        growActiveRegion(edgeSign, lastX);
-      }
-    }
-    rafId = requestAnimationFrame(loop);
-  }
-
-  el("waveform").addEventListener("pointerdown", (e) => {
-    dragging = true;
-    lastX = e.clientX;
-    if (!rafId) rafId = requestAnimationFrame(loop);
-  });
-  document.addEventListener("pointermove", (e) => {
-    if (dragging) lastX = e.clientX;
-  });
-  document.addEventListener("pointerup", () => { dragging = false; lastX = null; });
-  document.addEventListener("pointercancel", () => { dragging = false; lastX = null; });
 }
 
 /* ---------------- Import ---------------- */
@@ -534,13 +438,11 @@ el("fileInput").addEventListener("change", async (e) => {
     state.fileBaseName = file.name.replace(/\.[^.]+$/, "") || "錄音";
     state.buffer = mono;
     state.undoStack = [];
-    state.region = null;
     zoomState.current = null;
     el("importScreen").classList.add("hidden");
     el("editorScreen").classList.add("active");
     el("title").textContent = state.fileBaseName;
     updateUndoBtn();
-    updateSelectionUI();
     renderWaveform();
     maybeShowInstallBanner();
   } catch (err) {
@@ -570,27 +472,9 @@ el("undoBtn").addEventListener("click", () => {
   if (state.undoStack.length === 0) return;
   const prev = state.undoStack.pop();
   state.buffer = prev;
-  state.region = null;
   updateUndoBtn();
-  updateSelectionUI();
   renderWaveform();
   toast("已復原上一步");
-});
-
-/* ---------------- Delete / Keep ---------------- */
-
-el("btnDelete").addEventListener("click", () => {
-  const sel = selSamples();
-  if (!sel) return;
-  setCurrentBuffer(deleteRange(state.buffer, sel.s, sel.e));
-  toast("已刪除選取片段");
-});
-
-el("btnKeep").addEventListener("click", () => {
-  const sel = selSamples();
-  if (!sel) return;
-  setCurrentBuffer(keepRange(state.buffer, sel.s, sel.e));
-  toast("已保留選取片段");
 });
 
 /* ---------------- Fade ---------------- */
@@ -598,10 +482,7 @@ el("btnKeep").addEventListener("click", () => {
 function doFade(type) {
   const sr = state.buffer.sampleRate;
   let s, e;
-  const sel = selSamples();
-  if (sel) {
-    s = sel.s; e = sel.e;
-  } else if (type === "in") {
+  if (type === "in") {
     s = 0; e = Math.min(state.buffer.length, Math.round(3 * sr));
   } else {
     e = state.buffer.length; s = Math.max(0, e - Math.round(3 * sr));
@@ -621,6 +502,7 @@ function openSheet(id) {
 function closeSheets() {
   el("sheetBackdrop").classList.remove("open");
   document.querySelectorAll(".sheet.open").forEach((s) => s.classList.remove("open"));
+  clearClipRegion();
 }
 el("sheetBackdrop").addEventListener("click", closeSheets);
 document.querySelectorAll("[data-close-sheet]").forEach((b) => b.addEventListener("click", closeSheets));
@@ -703,10 +585,6 @@ el("insertFileInput").addEventListener("change", (e) => {
 });
 document.querySelectorAll("#insertPosGroup .seg-btn").forEach((b) => {
   b.addEventListener("click", () => {
-    if (b.dataset.pos === "selection" && !state.region) {
-      toast("請先在波形上選取一個插入點");
-      return;
-    }
     insertPos = b.dataset.pos;
     document.querySelectorAll("#insertPosGroup .seg-btn").forEach((x) => x.classList.remove("active"));
     b.classList.add("active");
@@ -720,7 +598,7 @@ el("insertConfirm").addEventListener("click", async () => {
     const insBuf = await loadFile(insertFile, { asInsert: true });
     let at;
     if (insertPos === "start") at = 0;
-    else if (insertPos === "selection" && state.region) at = selSamples().s;
+    else if (insertPos === "playhead") at = Math.round(ws.getCurrentTime() * state.buffer.sampleRate);
     else at = state.buffer.length;
     setCurrentBuffer(spliceInsert(state.buffer, insBuf, at));
     toast("已插入音檔");
