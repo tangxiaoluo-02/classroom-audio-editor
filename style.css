@@ -64,6 +64,7 @@ html, body {
   margin: 0;
   background: var(--bg);
   color: var(--text);
+  touch-action: manipulation;
 }
 
 body {
@@ -179,7 +180,7 @@ header.topbar h1 {
   box-shadow: var(--shadow);
   flex-shrink: 0;
 }
-#waveform { width: 100%; }
+#waveform { width: 100%; touch-action: none; }
 #waveform ::part(cursor) { background: var(--wave-cursor); }
 
 .time-row {
