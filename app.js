@@ -777,4 +777,13 @@ if ("serviceWorker" in navigator) {
   window.addEventListener("load", () => {
     navigator.serviceWorker.register("./sw.js").catch(() => {});
   });
+  // A newer service worker can take over an already-open tab mid-session (we
+  // push updates often). Don't auto-reload — that would silently wipe an
+  // in-progress edit — just let the user know once it's a safe time to refresh.
+  let announcedUpdate = false;
+  navigator.serviceWorker.addEventListener("controllerchange", () => {
+    if (announcedUpdate) return;
+    announcedUpdate = true;
+    toast("已有新版本，建議完成目前操作、匯出後再重新整理頁面", 6000);
+  });
 }
