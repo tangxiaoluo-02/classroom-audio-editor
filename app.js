@@ -274,22 +274,60 @@ function updateUndoBtn() {
 }
 
 function updateSelectionUI() {
-  const row = el("selRow");
-  if (state.region) {
-    const s = state.region.start, e = state.region.end;
-    row.innerHTML = `已選取 ${fmtTime(s)} ~ ${fmtTime(e)}（${fmtTime(e - s)}） <button class="clear-sel" id="clearSelBtn">清除選取</button>`;
-    el("clearSelBtn").addEventListener("click", () => {
-      if (state.region.wsRegion) state.region.wsRegion.remove();
-      state.region = null;
-      updateSelectionUI();
-    });
-  } else {
-    row.textContent = "拖曳波形可選取一段範圍";
-  }
   const hasSel = !!state.region;
+  el("selHint").hidden = hasSel;
+  el("selPanel").hidden = !hasSel;
+  if (hasSel) {
+    const s = state.region.start, e = state.region.end;
+    el("selStartTime").textContent = fmtTime(s);
+    el("selEndTime").textContent = fmtTime(e);
+    el("selDuration").textContent = "長度 " + fmtTime(e - s);
+  }
   el("btnDelete").disabled = !hasSel;
   el("btnKeep").disabled = !hasSel;
 }
+
+function nudgeSelectionEdge(edge, delta) {
+  if (!state.region || !state.buffer) return;
+  const r = state.region.wsRegion;
+  const MIN_GAP = 0.05;
+  if (edge === "start") {
+    const next = Math.max(0, Math.min(r.end - MIN_GAP, r.start + delta));
+    r.setOptions({ start: next });
+  } else {
+    const next = Math.min(state.buffer.duration, Math.max(r.start + MIN_GAP, r.end + delta));
+    r.setOptions({ end: next });
+  }
+  state.region = { start: r.start, end: r.end, wsRegion: r };
+  updateSelectionUI();
+}
+
+function previewSelectionEdge(edge) {
+  if (!state.region || !state.buffer) return;
+  const t = edge === "start" ? state.region.start : state.region.end;
+  const from = Math.max(0, t - 0.4);
+  const to = Math.min(state.buffer.duration, t + 0.4);
+  ws.play(from, to);
+}
+
+el("selPanel").addEventListener("click", (e) => {
+  const nudgeBtn = e.target.closest(".nudge-btn");
+  if (nudgeBtn) {
+    const edge = nudgeBtn.closest(".sel-nudge-row").dataset.edge;
+    nudgeSelectionEdge(edge, parseFloat(nudgeBtn.dataset.delta));
+    return;
+  }
+  const previewBtn = e.target.closest(".sel-preview-btn");
+  if (previewBtn) {
+    previewSelectionEdge(previewBtn.dataset.edge);
+    return;
+  }
+  if (e.target.closest("#clearSelBtn")) {
+    if (state.region && state.region.wsRegion) state.region.wsRegion.remove();
+    state.region = null;
+    updateSelectionUI();
+  }
+});
 
 function updateTimeUI() {
   el("curTime").textContent = fmtTime(ws.getCurrentTime());

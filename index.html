@@ -55,7 +55,40 @@
       </div>
     </div>
 
-    <div class="sel-row" id="selRow">拖曳波形可選取一段範圍</div>
+    <div class="sel-hint" id="selHint">拖曳波形可選取一段範圍</div>
+
+    <div class="sel-panel" id="selPanel" hidden>
+      <div class="sel-edge" data-edge="start">
+        <div class="sel-edge-top">
+          <span class="sel-edge-label">起點</span>
+          <span class="sel-edge-time mono" id="selStartTime">0:00.0</span>
+          <button class="sel-preview-btn" data-edge="start" title="試聽起點附近">▶ 試聽</button>
+        </div>
+        <div class="sel-nudge-row" data-edge="start">
+          <button class="nudge-btn" data-delta="-1">－1秒</button>
+          <button class="nudge-btn" data-delta="-0.1">－0.1</button>
+          <button class="nudge-btn" data-delta="0.1">＋0.1</button>
+          <button class="nudge-btn" data-delta="1">＋1秒</button>
+        </div>
+      </div>
+      <div class="sel-edge" data-edge="end">
+        <div class="sel-edge-top">
+          <span class="sel-edge-label">終點</span>
+          <span class="sel-edge-time mono" id="selEndTime">0:00.0</span>
+          <button class="sel-preview-btn" data-edge="end" title="試聽終點附近">▶ 試聽</button>
+        </div>
+        <div class="sel-nudge-row" data-edge="end">
+          <button class="nudge-btn" data-delta="-1">－1秒</button>
+          <button class="nudge-btn" data-delta="-0.1">－0.1</button>
+          <button class="nudge-btn" data-delta="0.1">＋0.1</button>
+          <button class="nudge-btn" data-delta="1">＋1秒</button>
+        </div>
+      </div>
+      <div class="sel-summary">
+        <span class="mono" id="selDuration">長度 0:00.0</span>
+        <button class="clear-sel" id="clearSelBtn">清除選取</button>
+      </div>
+    </div>
 
     <div class="transport">
       <button id="backBtn" title="倒退 5 秒">⏪</button>
