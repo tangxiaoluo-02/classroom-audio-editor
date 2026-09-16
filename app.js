@@ -15,6 +15,11 @@ const state = {
 let ws = null;
 let regionsPlugin = null;
 const zoomState = { fit: 20, max: 400, current: null };
+// A tap on empty waveform (meant to preview a spot) still crosses the regions
+// plugin's internal drag threshold on a touchscreen, so it always produces a
+// "region". We can't tell a tap from a real selection until the finger lifts,
+// so we track the newest not-yet-confirmed region and only decide on pointerup.
+let pendingNewRegion = null;
 
 const el = (id) => document.getElementById(id);
 const fmtTime = (s) => {
@@ -318,11 +323,6 @@ function initWavesurfer() {
   ws.registerPlugin(regionsPlugin);
   regionsPlugin.enableDragSelection({ color: "rgba(242,166,90,0.28)" });
 
-  // A tap on empty waveform (meant to preview a spot) still crosses the plugin's
-  // internal drag threshold on a touchscreen, so it always produces a "region".
-  // We can't tell a tap from a real selection until the finger actually lifts,
-  // so we track the newest not-yet-confirmed region and only decide on pointerup.
-  let pendingNewRegion = null;
   const tapToleranceSec = () => 12 / (zoomState.current || zoomState.fit || 20);
 
   regionsPlugin.on("region-created", (r) => {
@@ -369,8 +369,11 @@ function initWavesurfer() {
 }
 
 // When a drag (new selection or resizing an edge) reaches near the left/right
-// edge of the waveform while zoomed in, keep scrolling that direction so the
-// selection can keep extending past what was originally visible on screen.
+// edge of the waveform while zoomed in, keep scrolling that direction AND keep
+// growing the region ourselves. The regions plugin only recomputes a region's
+// bounds from genuine pointermove deltas — a finger held still at the edge
+// while we scroll underneath it never fires those, so the plugin never sees
+// the extension unless we apply it directly.
 function setupEdgeAutoScroll() {
   const EDGE_MARGIN = 44;
   const MAX_SPEED = 18;
@@ -378,19 +381,45 @@ function setupEdgeAutoScroll() {
   let lastX = null;
   let rafId = null;
 
+  function timeAtClientX(clientX) {
+    const rect = el("waveform").getBoundingClientRect();
+    const pxPerSec = zoomState.current || zoomState.fit || 20;
+    const t = (ws.getScroll() + (clientX - rect.left)) / pxPerSec;
+    return Math.max(0, Math.min(state.buffer ? state.buffer.duration : t, t));
+  }
+
+  function growActiveRegion(edgeSign, clientX) {
+    const region = pendingNewRegion || (state.region && state.region.wsRegion);
+    if (!region || region.isRemoved) return;
+    const t = timeAtClientX(clientX);
+    if (edgeSign > 0) {
+      region.setOptions({ end: Math.max(t, region.start + 0.05) });
+    } else {
+      region.setOptions({ start: Math.min(t, region.end - 0.05) });
+    }
+    if (state.region && state.region.wsRegion === region) {
+      state.region = { start: region.start, end: region.end, wsRegion: region };
+      updateSelectionUI();
+    }
+  }
+
   function loop() {
     if (!dragging) { rafId = null; return; }
     const rect = el("waveform").getBoundingClientRect();
     if (lastX != null) {
-      let delta = 0;
+      let edgeSign = 0;
+      let depth = 0;
       if (lastX < rect.left + EDGE_MARGIN) {
-        const depth = Math.min(1, (rect.left + EDGE_MARGIN - lastX) / EDGE_MARGIN);
-        delta = -depth * MAX_SPEED;
+        edgeSign = -1;
+        depth = Math.min(1, (rect.left + EDGE_MARGIN - lastX) / EDGE_MARGIN);
       } else if (lastX > rect.right - EDGE_MARGIN) {
-        const depth = Math.min(1, (lastX - (rect.right - EDGE_MARGIN)) / EDGE_MARGIN);
-        delta = depth * MAX_SPEED;
+        edgeSign = 1;
+        depth = Math.min(1, (lastX - (rect.right - EDGE_MARGIN)) / EDGE_MARGIN);
       }
-      if (delta !== 0) ws.setScroll(ws.getScroll() + delta);
+      if (edgeSign !== 0) {
+        ws.setScroll(ws.getScroll() + edgeSign * depth * MAX_SPEED);
+        growActiveRegion(edgeSign, lastX);
+      }
     }
     rafId = requestAnimationFrame(loop);
   }
