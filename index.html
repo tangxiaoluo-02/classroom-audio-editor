@@ -47,6 +47,12 @@
     <div class="wave-wrap">
       <div id="waveform"></div>
       <div class="time-row"><span class="mono" id="curTime">0:00.0</span><span class="mono" id="totalTime">0:00.0</span></div>
+      <div class="zoom-row">
+        <button class="zoom-btn" id="zoomOutBtn" title="縮小">－</button>
+        <input type="range" id="zoomSlider" min="0" max="100" value="0" />
+        <button class="zoom-btn" id="zoomInBtn" title="放大">＋</button>
+        <span class="zoom-label mono" id="zoomLabel">完整</span>
+      </div>
     </div>
 
     <div class="sel-row" id="selRow">拖曳波形可選取一段範圍</div>

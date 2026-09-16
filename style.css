@@ -189,6 +189,39 @@ header.topbar h1 {
   color: var(--text-dim);
   padding: 6px 4px 0;
 }
+
+.zoom-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 2px 2px;
+}
+.zoom-btn {
+  flex-shrink: 0;
+  width: 30px; height: 30px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text);
+  border-radius: 8px;
+  font-size: 16px;
+  line-height: 1;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
+}
+.zoom-btn:active { background: var(--border); }
+#zoomSlider {
+  flex: 1;
+  min-width: 0;
+  accent-color: var(--accent);
+  height: 28px;
+}
+.zoom-label {
+  flex-shrink: 0;
+  width: 44px;
+  text-align: right;
+  font-size: 11px;
+  color: var(--text-dim);
+}
 .sel-row {
   display: flex;
   justify-content: center;

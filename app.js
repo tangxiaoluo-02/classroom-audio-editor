@@ -14,6 +14,7 @@ const state = {
 
 let ws = null;
 let regionsPlugin = null;
+const zoomState = { fit: 20, max: 400, current: null };
 
 const el = (id) => document.getElementById(id);
 const fmtTime = (s) => {
@@ -231,7 +232,36 @@ function renderWaveform() {
   const url = URL.createObjectURL(blob);
   ws.load(url).then(() => {
     updateTimeUI();
+    applyZoomBounds();
   });
+}
+
+function applyZoomBounds() {
+  const containerWidth = el("waveform").clientWidth || 300;
+  const dur = state.buffer.duration || 1;
+  const fit = Math.max(5, containerWidth / dur);
+  zoomState.fit = fit;
+  zoomState.max = Math.max(fit * 3, 400);
+  if (zoomState.current == null || zoomState.current < fit) zoomState.current = fit;
+  if (zoomState.current > zoomState.max) zoomState.current = zoomState.max;
+  ws.zoom(zoomState.current);
+  syncZoomUI();
+}
+
+function syncZoomUI() {
+  const slider = el("zoomSlider");
+  slider.min = String(zoomState.fit);
+  slider.max = String(zoomState.max);
+  slider.step = String(Math.max(0.5, (zoomState.max - zoomState.fit) / 200));
+  slider.value = String(zoomState.current);
+  const ratio = zoomState.current / zoomState.fit;
+  el("zoomLabel").textContent = ratio <= 1.02 ? "完整" : ratio.toFixed(1) + "×";
+}
+
+function setZoom(pxPerSec) {
+  zoomState.current = Math.min(zoomState.max, Math.max(zoomState.fit, pxPerSec));
+  ws.zoom(zoomState.current);
+  syncZoomUI();
 }
 
 function updateUndoBtn() {
@@ -344,6 +374,7 @@ el("fileInput").addEventListener("change", async (e) => {
     state.buffer = mono;
     state.undoStack = [];
     state.region = null;
+    zoomState.current = null;
     el("importScreen").classList.add("hidden");
     el("editorScreen").classList.add("active");
     el("title").textContent = state.fileBaseName;
@@ -365,6 +396,12 @@ el("fileInput").addEventListener("change", async (e) => {
 el("playBtn").addEventListener("click", () => ws.playPause());
 el("backBtn").addEventListener("click", () => ws.setTime(Math.max(0, ws.getCurrentTime() - 5)));
 el("fwdBtn").addEventListener("click", () => ws.setTime(Math.min(ws.getDuration(), ws.getCurrentTime() + 5)));
+
+/* ---------------- Zoom ---------------- */
+
+el("zoomSlider").addEventListener("input", (e) => setZoom(parseFloat(e.target.value)));
+el("zoomOutBtn").addEventListener("click", () => setZoom(zoomState.current / 1.6));
+el("zoomInBtn").addEventListener("click", () => setZoom(zoomState.current * 1.6));
 
 /* ---------------- Undo ---------------- */
 
