@@ -364,6 +364,47 @@ function initWavesurfer() {
   ws.on("play", () => { el("playBtn").textContent = "⏸"; });
   ws.on("pause", () => { el("playBtn").textContent = "▶"; });
   ws.on("finish", () => { el("playBtn").textContent = "▶"; });
+
+  setupEdgeAutoScroll();
+}
+
+// When a drag (new selection or resizing an edge) reaches near the left/right
+// edge of the waveform while zoomed in, keep scrolling that direction so the
+// selection can keep extending past what was originally visible on screen.
+function setupEdgeAutoScroll() {
+  const EDGE_MARGIN = 44;
+  const MAX_SPEED = 18;
+  let dragging = false;
+  let lastX = null;
+  let rafId = null;
+
+  function loop() {
+    if (!dragging) { rafId = null; return; }
+    const rect = el("waveform").getBoundingClientRect();
+    if (lastX != null) {
+      let delta = 0;
+      if (lastX < rect.left + EDGE_MARGIN) {
+        const depth = Math.min(1, (rect.left + EDGE_MARGIN - lastX) / EDGE_MARGIN);
+        delta = -depth * MAX_SPEED;
+      } else if (lastX > rect.right - EDGE_MARGIN) {
+        const depth = Math.min(1, (lastX - (rect.right - EDGE_MARGIN)) / EDGE_MARGIN);
+        delta = depth * MAX_SPEED;
+      }
+      if (delta !== 0) ws.setScroll(ws.getScroll() + delta);
+    }
+    rafId = requestAnimationFrame(loop);
+  }
+
+  el("waveform").addEventListener("pointerdown", (e) => {
+    dragging = true;
+    lastX = e.clientX;
+    if (!rafId) rafId = requestAnimationFrame(loop);
+  });
+  document.addEventListener("pointermove", (e) => {
+    if (dragging) lastX = e.clientX;
+  });
+  document.addEventListener("pointerup", () => { dragging = false; lastX = null; });
+  document.addEventListener("pointercancel", () => { dragging = false; lastX = null; });
 }
 
 /* ---------------- Import ---------------- */
