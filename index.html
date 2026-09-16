@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8" />
+<title>課堂錄音剪輯</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1" />
+<meta name="description" content="在手機瀏覽器上剪輯、變速變調、轉檔上課錄音，全程本機處理不上傳" />
+<meta name="theme-color" content="#0E2E2D" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="錄音剪輯" />
+<link rel="manifest" href="./manifest.webmanifest" />
+<link rel="apple-touch-icon" href="./icon-192.png" />
+<link rel="icon" href="./icon-192.png" />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;600;700&family=JetBrains+Mono:wght@500&display=swap" />
+<link rel="stylesheet" href="./style.css" />
+</head>
+<body>
+
+<header class="topbar">
+  <button class="icon-btn" id="undoBtn" title="復原上一步" disabled>↺</button>
+  <h1 id="title">課堂錄音剪輯</h1>
+  <button class="icon-btn" id="newFileBtn" title="更換檔案">⇪</button>
+</header>
+
+<section id="importScreen">
+  <div class="badge">
+    <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/>
+    </svg>
+  </div>
+  <h2>選一段上課錄音開始剪輯</h2>
+  <p>支援 mp3、m4a、wav 等常見格式。整個處理過程都在您的手機瀏覽器裡進行，音檔不會上傳到任何地方。</p>
+  <label class="big-btn" for="fileInput">選擇錄音檔</label>
+  <input type="file" id="fileInput" accept="audio/*" hidden />
+  <label class="opt-row" for="optimizeToggle">
+    <input type="checkbox" id="optimizeToggle" checked />
+    <span class="opt-text">
+      <b>語音優化模式（建議開啟）</b>
+      <span>錄音檔轉為單聲道並降低取樣率，大幅節省手機記憶體，避免長時間錄音處理到一半當機。適合一般語音內容，對說話清晰度影響很小。</span>
+    </span>
+  </label>
+</section>
+
+<section id="editorScreen">
+  <div class="scroll-hint">
+    <div class="wave-wrap">
+      <div id="waveform"></div>
+      <div class="time-row"><span class="mono" id="curTime">0:00.0</span><span class="mono" id="totalTime">0:00.0</span></div>
+    </div>
+
+    <div class="sel-row" id="selRow">拖曳波形可選取一段範圍</div>
+
+    <div class="transport">
+      <button id="backBtn" title="倒退 5 秒">⏪</button>
+      <button id="playBtn" class="play" title="播放 / 暫停">▶</button>
+      <button id="fwdBtn" title="快進 5 秒">⏩</button>
+    </div>
+
+    <div class="toolbar">
+      <button class="tool-btn danger" id="btnDelete" disabled><span class="ic">✂️</span>刪除選取</button>
+      <button class="tool-btn" id="btnKeep" disabled><span class="ic">📌</span>僅保留選取</button>
+      <button class="tool-btn" id="btnFadeIn"><span class="ic">🌅</span>淡入</button>
+      <button class="tool-btn" id="btnFadeOut"><span class="ic">🌇</span>淡出</button>
+      <button class="tool-btn" id="btnSpeed"><span class="ic">⏱️</span>變速</button>
+      <button class="tool-btn" id="btnPitch"><span class="ic">🎵</span>調 Key</button>
+      <button class="tool-btn" id="btnMerge"><span class="ic">➕</span>合併/插入</button>
+    </div>
+
+    <div class="export-bar">
+      <button class="big-btn" id="btnExport" style="width:100%;">匯出音檔</button>
+    </div>
+  </div>
+
+  <div id="installBanner">
+    <span class="txt">💡 點下方「分享」圖示 → 選「加入主畫面」，之後就能像 App 一樣直接從主畫面開啟</span>
+    <button id="installBannerClose">✕</button>
+  </div>
+</section>
+
+<!-- Speed sheet -->
+<div class="sheet" id="speedSheet">
+  <div class="sheet-handle"></div>
+  <h3>調整速度</h3>
+  <p class="sheet-sub">只改變播放速度，音調(Key)會自動維持不變。適合把冗長的錄音加快聽。</p>
+  <div class="slider-block">
+    <div class="val" id="speedVal">1.00×</div>
+    <input type="range" id="speedSlider" min="50" max="200" value="100" step="5" />
+    <div class="marks"><span>0.5×</span><span>1.0×</span><span>2.0×</span></div>
+  </div>
+  <div class="sheet-actions">
+    <button class="cancel" data-close-sheet>取消</button>
+    <button class="confirm" id="speedConfirm">套用</button>
+  </div>
+</div>
+
+<!-- Pitch sheet -->
+<div class="sheet" id="pitchSheet">
+  <div class="sheet-handle"></div>
+  <h3>調整 Key（音高）</h3>
+  <p class="sheet-sub">只改變音高，速度會自動維持不變。單位是半音，正值調高、負值調低。</p>
+  <div class="slider-block">
+    <div class="val" id="pitchVal">0</div>
+    <input type="range" id="pitchSlider" min="-12" max="12" value="0" step="1" />
+    <div class="marks"><span>-12</span><span>0</span><span>+12</span></div>
+  </div>
+  <div class="sheet-actions">
+    <button class="cancel" data-close-sheet>取消</button>
+    <button class="confirm" id="pitchConfirm">套用</button>
+  </div>
+</div>
+
+<!-- Merge / Insert sheet -->
+<div class="sheet" id="mergeSheet">
+  <div class="sheet-handle"></div>
+  <h3>合併 / 插入音檔</h3>
+  <p class="sheet-sub">選擇另一個音檔，接到目前錄音的指定位置。</p>
+  <div class="file-drop" id="insertFileDrop">點此選擇要插入的音檔</div>
+  <input type="file" id="insertFileInput" accept="audio/*" hidden />
+  <p class="field-label">插入位置</p>
+  <div class="seg-group" id="insertPosGroup">
+    <div class="seg-btn" data-pos="start">開頭</div>
+    <div class="seg-btn" data-pos="selection">目前選取處</div>
+    <div class="seg-btn active" data-pos="end">結尾（合併）</div>
+  </div>
+  <div class="sheet-actions">
+    <button class="cancel" data-close-sheet>取消</button>
+    <button class="confirm" id="insertConfirm" disabled>插入</button>
+  </div>
+</div>
+
+<!-- Export sheet -->
+<div class="sheet" id="exportSheet">
+  <div class="sheet-handle"></div>
+  <h3>匯出音檔</h3>
+  <p class="field-label">檔名</p>
+  <input type="text" class="text-input" id="exportFilename" />
+  <p class="field-label">格式</p>
+  <div class="seg-group" id="exportFormatGroup">
+    <div class="seg-btn active" data-fmt="wav">WAV（無損）</div>
+    <div class="seg-btn" data-fmt="mp3">MP3（較小）</div>
+  </div>
+  <div class="sheet-actions">
+    <button class="cancel" data-close-sheet>取消</button>
+    <button class="confirm" id="exportConfirm">匯出</button>
+  </div>
+</div>
+
+<div class="sheet-backdrop" id="sheetBackdrop"></div>
+
+<div id="toast"></div>
+<div id="progressOverlay">
+  <div class="spinner"></div>
+  <div class="msg" id="progressMsg">處理中…</div>
+  <div class="bar-track"><div class="bar-fill" id="progressBarFill"></div></div>
+</div>
+
+<script src="./vendor/wavesurfer.min.js"></script>
+<script src="./vendor/regions.min.js"></script>
+<script src="./vendor/lame.min.js"></script>
+<script type="module" src="./app.js"></script>
+<script>
+  document.getElementById("newFileBtn").addEventListener("click", () => {
+    if (document.getElementById("editorScreen").classList.contains("active")) {
+      if (!confirm("要更換錄音檔嗎？目前未匯出的編輯內容會遺失。")) return;
+    }
+    location.reload();
+  });
+</script>
+</body>
+</html>
